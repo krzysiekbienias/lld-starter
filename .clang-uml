@@ -1,0 +1,17 @@
+compilation_database_dir: build
+output_directory: build/uml
+query_driver: g++
+diagrams:
+  class_diagram:
+    type: class
+    glob:
+      - src/**/*.cpp
+      - unit_tests/**/*.cpp
+    include:
+      paths:
+        - header
+        - src
+    exclude:
+      namespaces:
+        - std
+    generate_method_arguments: full

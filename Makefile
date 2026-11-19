@@ -8,6 +8,7 @@
 #   make gtest        -> odpal binarkę testów bezpośrednio (FILTER="Suite.Name")
 #   make release      -> build Release do build-release/
 #   make format       -> clang-format na całym kodzie
+#   make uml          -> wygeneruj diagram klas (clang-uml) i wstaw do README.md
 #   make clean        -> usuń katalogi build*
 #
 # Zmienne: BUILD_TYPE=Debug|Release, GENERATOR=Ninja, ARGS="...", FILTER="..."
@@ -32,7 +33,9 @@ XCODE_SDK := /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platfor
 
 SRC_FILES := $(shell find app src header unit_tests -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) 2>/dev/null)
 
-.PHONY: all configure build run dev test gtest release debug format clean rebuild help
+UML_FILE := $(BUILD_DIR)/uml/class_diagram.mmd
+
+.PHONY: all configure build run dev test gtest release debug format uml clean rebuild help
 
 all: build
 
@@ -85,8 +88,20 @@ gtest: configure
 format:
 	@if [ -n "$(SRC_FILES)" ]; then clang-format -i $(SRC_FILES); echo "formatted $(words $(SRC_FILES)) files"; fi
 
+# Diagram trafia do README.md między znaczniki <!-- uml:start --> i <!-- uml:end -->.
+uml: configure
+	@$(CMAKE) -S . -B $(BUILD_DIR) > /dev/null
+	clang-uml -g mermaid --no-metadata --allow-empty-diagrams
+	@grep -q '<!-- uml:start -->' README.md && grep -q '<!-- uml:end -->' README.md \
+		|| { echo "❌ README.md nie ma znaczników <!-- uml:start --> / <!-- uml:end -->"; exit 1; }
+	@awk -v f="$(UML_FILE)" ' \
+		/<!-- uml:start -->/ { print; print "```mermaid"; while ((getline l < f) > 0) print l; print "```"; skip = 1; next } \
+		/<!-- uml:end -->/ { skip = 0 } \
+		!skip { print }' README.md > README.md.tmp && mv README.md.tmp README.md
+	@echo "✅ README.md: diagram zaktualizowany"
+
 clean:
 	rm -rf build build-release
 
 help:
-	@sed -n '2,13p' $(MAKEFILE_LIST) | sed 's/^# \{0,1\}//'
+	@sed -n '2,14p' $(MAKEFILE_LIST) | sed 's/^# \{0,1\}//'
